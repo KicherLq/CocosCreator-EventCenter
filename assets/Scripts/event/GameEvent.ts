@@ -1,3 +1,3 @@
 export enum GameEvent {
-    onTableClicked,
+    onTableClicked = 'onTableClicked',
 }

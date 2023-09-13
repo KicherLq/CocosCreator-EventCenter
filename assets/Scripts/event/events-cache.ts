@@ -10,7 +10,7 @@ export interface EventInfo {
 export class EventCache {
     private __events: EventInfo[] = [];
 
-    cacheEvent(name: GameEvent, constructor: Function, listener: (...args: any[]) => void, order = 0) {
+    public cacheEvent(name: GameEvent, constructor: Function, listener: (...args: any[]) => void, order = 0) {
         let newEvent: EventInfo = { order, constructor, listener, name };
         this.__events.push(newEvent);
         this.__events.sort((a: EventInfo, b: EventInfo) => {
@@ -18,7 +18,7 @@ export class EventCache {
         });
     }
 
-    getAllEvents(constructor: Function) {
+    public getAllEvents(constructor: Function) {
         let array: EventInfo[] = [];
         for(let i = 0; i < this.__events.length; ++i) {
             const e = this.__events[i];
@@ -31,4 +31,5 @@ export class EventCache {
 
 }
 
-export default new EventCache();
+let eventsCache = new EventCache();
+export default eventsCache;
