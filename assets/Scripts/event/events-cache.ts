@@ -1,4 +1,4 @@
-import { GameEvent } from "./GameEvent";
+import { GameEvent } from './GameEvent';
 
 export interface EventInfo {
     order: number,

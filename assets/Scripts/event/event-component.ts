@@ -4,38 +4,39 @@ import eventCenter from "./game-eventcenter";
 import { GameEvent } from "./GameEvent";
 
 export function eventComponent(targetClass: typeof Component) {
-    targetClass.prototype['addEventListeners'] = () => {
-        let events: EventInfo[] = eventsCache.getAllEvents(this.constructor);
-        for(let i = 0; i < events.length; ++i) {
+    //TODO 注意，这里必须使用function而非箭头函数
+    targetClass.prototype['addEventListeners'] = function () {
+        let events = eventsCache.getAllEvents(this.constructor);
+        for (let i = 0; i < events.length; i++) {
             const event = events[i];
-            if(!eventCenter.hasEventListener(event.name, event.listener, this)) {
+            if (!eventCenter.hasEventListener(event.name, event.listener, this)) {
                 eventCenter.on(event.name, event.listener, this);
             }
         }
     }
 
-    targetClass.prototype['removeEventListeners'] = () => {
+    targetClass.prototype['removeEventListeners'] = function () {
         eventCenter.targetOff(this);
     }
 
     const originalOnLoad = targetClass.prototype['onLoad'];
-    targetClass.prototype['onLoad'] = () => {
-        if(this.addEventListeners) {
+    targetClass.prototype['onLoad'] = function () {
+        if (this.addEventListeners) {
             this.addEventListeners();
         }
 
-        if(originalOnLoad) {
+        if (originalOnLoad) {
             originalOnLoad.apply(this);
         }
     }
 
     const originalOnDestroy = targetClass.prototype['onDestroy'];
-    targetClass.prototype['onDestroy'] = () => {
-        if(this.removeEventListeners) {
+    targetClass.prototype['onDestroy'] = function () {
+        if (this.removeEventListeners) {
             this.removeEventListeners();
         }
 
-        if(originalOnDestroy) {
+        if (originalOnDestroy) {
             originalOnDestroy.apply(this);
         }
     }
