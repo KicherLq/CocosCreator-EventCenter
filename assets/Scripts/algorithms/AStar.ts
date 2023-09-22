@@ -7,8 +7,7 @@
  * 曼哈顿距离：只准水平和垂直移动下的最短距离
  */
 
-import { _decorator, CCInteger, Component, instantiate, Layout, Node, Prefab, Vec2, Vec3 } from 'cc';
-import { CallbacksInvoker } from '../event/callbacks-invoker';
+import { _decorator, CCInteger, Component, instantiate, Node, Prefab } from 'cc';
 const { ccclass, property } = _decorator;
 
 const FACTOR = 10; //相邻格子的距离
@@ -26,22 +25,6 @@ enum GRID_TYPE {
 }
 
 class Grid extends Node {
-    private __row: number = 0;
-    set row(r: number) {
-        this.__row = r;
-    }
-    get row() {
-        return this.__row;
-    }
-
-    private __col: number = 0;
-    set col(c: number) {
-        this.__col = c;
-    }
-    get col() {
-        return this.__col;
-    }
-
     //角色到该节点的实际距离
     private __g: number = 0;
     set g(value: number) {
@@ -67,7 +50,7 @@ class Grid extends Node {
         return this.__f;
     }
 
-    private __state: GRID_TYPE = null;
+    private __state: GRID_TYPE = GRID_TYPE.Default;
     set state(state: GRID_TYPE) {
         this.__state = state;
         
@@ -82,13 +65,6 @@ class Grid extends Node {
     }
     get gridParent() {
         return this.__gridParent;
-    }
-
-    constructor(row: number, col: number, state: GRID_TYPE = GRID_TYPE.Default) {
-         super();
-         this.row = row;
-         this.col = col;
-         this.state = state;
     }
 }
 
@@ -123,14 +99,15 @@ export class AStar extends Component {
     }
 
     private initGridMap() {
+        this.__gridMap = this.node.getChildByName('GridMap');
         for(let i = 0; i < this.mapHeight; ++i) {
             this.__gridList[i] = [];
             for(let j = 0; j < this.mapLength; ++j) {
-                let grid: Grid = new Grid(i, j, GRID_TYPE.Default);
+                let grid: Grid = new Grid();
+                this.__gridMap.addChild(grid);
                 this.__gridList[i].push(grid);
             }
         }
-        this.__gridMap = this.node.getChildByName('GridMap');
     }
 
     private render() {
@@ -138,18 +115,18 @@ export class AStar extends Component {
             for(let j = 0; j < this.__gridList[i].length; ++j) {
                 let grid: Grid = this.__gridList[i][j];
                 let com = instantiate(this.gridPrefab);
-                com.parent = this.__gridMap;
+                com.parent = grid;
                 //垃圾cocos连个网格下的layout居中都没有，还TM得自己算坐标
                 let startX: number = -this.mapLength / 2 * this.gridSize;
                 let startY: number = -this.mapHeight / 2 * this.gridSize;
                 let posX: number = startX + j * this.gridSize + j;
                 let posY: number = startY + i * this.gridSize + i;
-                com.setPosition(posX, posY);
+                grid.setPosition(posX, posY);
             }
         }
     }
 
     public addGridToOpenList(grid: Grid) {
-        
+        this.__openList.add(grid);
     }
 }
