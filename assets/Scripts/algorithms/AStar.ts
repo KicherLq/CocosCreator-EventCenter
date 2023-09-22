@@ -7,7 +7,7 @@
  * 曼哈顿距离：只准水平和垂直移动下的最短距离
  */
 
-import { _decorator, CCInteger, Component, instantiate, Node, Prefab } from 'cc';
+import { _decorator, CCInteger, Component, error, instantiate, Node, Prefab } from 'cc';
 const { ccclass, property } = _decorator;
 
 const FACTOR = 10; //相邻格子的距离
@@ -25,6 +25,27 @@ enum GRID_TYPE {
 }
 
 class Grid extends Node {
+    private __row: number = 0;
+    set row(r: number) {
+        this.__row = r;
+    }
+    get row() {
+        return this.__row;
+    }
+
+    private __col: number = 0;
+    set col(c: number) {
+        this.__col = c;
+    }
+    get col() {
+        return this.__col;
+    }
+    constructor(row: number, col: number) {
+        super();
+        this.__row = row;
+        this.__col = col;
+    }
+
     //角色到该节点的实际距离
     private __g: number = 0;
     set g(value: number) {
@@ -82,10 +103,14 @@ export class AStar extends Component {
     @property({displayName: '单元格预制体', type: Prefab})
     gridPrefab: Prefab = null;
 
+    @property({displayName: '估价方式', type: CCInteger})
+    evalutionType: number = 0;
+
     private __openList: Set<Grid> = new Set(); //准备处理的单元格
     private __closeList: Set<Grid> = new Set(); //完成处理的单元格
     private __gridList: Grid[][] = []; //存放所有单元格
     private __gridMap: Node = null;
+    private __destinationGrid: Grid = null;
 
     protected onLoad(): void {
         this.__openList.clear();
@@ -103,7 +128,7 @@ export class AStar extends Component {
         for(let i = 0; i < this.mapHeight; ++i) {
             this.__gridList[i] = [];
             for(let j = 0; j < this.mapLength; ++j) {
-                let grid: Grid = new Grid();
+                let grid: Grid = new Grid(i, j);
                 this.__gridMap.addChild(grid);
                 this.__gridList[i].push(grid);
             }
@@ -128,5 +153,127 @@ export class AStar extends Component {
 
     public addGridToOpenList(grid: Grid) {
         this.__openList.add(grid);
+    }
+
+    public addNeighborGridToOpenList(parentGrid: Grid, neighborGrid: Grid, g: number) {
+        //当前节点的实际距离g等于上个节点的实际距离加上自己到上个节点的实际距离
+        let newG: number = parentGrid.g + g;
+        //如果该位置的节点已经在openList中
+        if(this.__openList.has(neighborGrid)) {
+            //比较实际距离g的值，用更小的值替换
+            if(newG < neighborGrid.g) {
+                neighborGrid.g = newG;
+                neighborGrid.gridParent = parentGrid;
+            }
+        } else {
+            neighborGrid.h = this.getH(neighborGrid);
+            //如果周边有一个是终点，那么说明已经找到了
+            if(neighborGrid.state === GRID_TYPE.Destination) {
+                this.__destinationGrid = neighborGrid;
+            } else {
+                this.addGridToOpenList(neighborGrid);
+            }
+        }
+    }
+
+    //处理相邻的节点
+    private operateNeighborGrid(grid: Grid) {
+        for (let i = -1; i <= 1; ++i) {
+            for (let j = -1; j <= 1; ++j) {
+                if (i === 0 && j === 0) {
+                    continue;
+                }
+                let newRow: number = grid.row + i;
+                let newCol: number = grid.col + j;
+                //超出地图范围
+                if(newRow < 0 || newRow >= this.mapHeight || newCol < 0 || newCol >= this.mapLength) {
+                    continue;
+                }
+                let newGrid: Grid = this.__gridList[newRow][newCol];
+                //已经处理过的节点
+                if(this.__closeList.has(newGrid)) {
+                    continue;
+                }
+                //障碍物节点
+                if(newGrid.state === GRID_TYPE.Obstacle) {
+                    continue;
+                }
+                //将相邻节点加入openList中
+                if(i === 0 || j === 0) {
+                    this.addNeighborGridToOpenList(grid, newGrid, FACTOR);
+                } else{
+                    this.addNeighborGridToOpenList(grid, newGrid, FACTOR_DIAGNOL);
+                }
+            }
+        }
+    }
+
+    //计算寻路
+    public findPath() {
+        while(this.__openList.size > 0 ) {
+            //提取排序后的节点
+            let minGrid: Grid = this.getMinGridInOpenList();
+            //处理该节点相邻的节点
+            this.operateNeighborGrid(minGrid);
+            //处理完后将该节点加入closeList中
+            this.addGridToOpenList(minGrid);
+        }
+        if(this.__destinationGrid === null) {
+            error('找不到可用路径')
+        } else{
+            this.showPath();
+        }
+    }
+
+    private showPath() {
+        let grid: Grid = this.__destinationGrid;
+        while(grid !== null) {
+            
+        }
+    }
+
+    private getMinGridInOpenList() {
+        if(this.__openList.size <= 0) {
+            return undefined;
+        }
+        let tempArray: Grid[] = [];
+        for(const grid of this.__openList) {
+            tempArray.push(grid);
+        }
+        //先按照f的值进行升序排序
+        tempArray.sort((a: Grid, b: Grid) => {
+            return a.f - b.f;
+        });
+        //再按照h的值进行升序排序
+        tempArray.sort((a: Grid, b: Grid) => {
+            return a.h - b.h;
+        });
+        let minGrid: Grid = tempArray[0];
+        this.__openList.delete(minGrid);
+        return minGrid;
+    }
+
+    private getH(grid: Grid): number {
+        if(this.evalutionType === 0) {
+
+        }
+        else if(this.evalutionType === 1) {
+
+        } else {
+
+        }
+    }
+
+    //曼哈顿距离
+    private getDiagonalDistance(grid: Grid): number {
+
+    }
+    //对角线距离
+    private getManhattanDistance(grid: Grid): number {
+
+    }
+    //欧几里得距离，貌似有问题
+    private getEuclideanDistance(grid: Grid): number {
+
     }
 }
