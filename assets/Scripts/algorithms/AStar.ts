@@ -7,7 +7,7 @@
  * 曼哈顿距离：只准水平和垂直移动下的最短距离
  */
 
-import { _decorator, CCInteger, Color, Component, error, instantiate, Node, Prefab, size, Sprite, UITransform } from 'cc';
+import { _decorator, CCInteger, color, Color, Component, error, instantiate, Node, Prefab, size, Sprite, UITransform } from 'cc';
 import { Grid } from './Grid';
 const { ccclass, property } = _decorator;
 
@@ -23,6 +23,7 @@ export enum GRID_TYPE {
     Destination,
     //普通单元格
     Default,
+    Path,
 }
 
 @ccclass('AStar')
@@ -64,6 +65,7 @@ export class AStar extends Component {
         this.initGridMap();
         this.render();
         this.setStartAndEndGrid();
+        this.setObstraceGrid();
     }
 
     private initGridMap() {
@@ -96,20 +98,18 @@ export class AStar extends Component {
         }
     }
 
-    private setGridColor(grid: Grid, color: Color) {
-        if(grid.state === GRID_TYPE.Origin || grid.state === GRID_TYPE.Destination) {
-            return;
-        }
-        grid.children[0].getComponent(Sprite).color = color;
-    }
-
     private setStartAndEndGrid() {
         this.__startGrid = this.__gridList[0][0];
         this.addGridToOpenList(this.__startGrid);
         this.__startGrid.state = GRID_TYPE.Origin;
-        this.__endGrid = this.__gridList[4][14];
+        this.__endGrid = this.__gridList[0][14];
         this.__endGrid.state = GRID_TYPE.Destination;
+    }
 
+    private setObstraceGrid() {
+        this.__gridList[0][8].state = GRID_TYPE.Obstacle;
+        this.__gridList[1][8].state = GRID_TYPE.Obstacle;
+        this.__gridList[2][8].state = GRID_TYPE.Obstacle;
     }
 
     public addGridToOpenList(grid: Grid) {
@@ -177,7 +177,7 @@ export class AStar extends Component {
 
     //计算寻路
     public findPath() {
-        while(this.__openList.size > 0 ) {
+        while(this.__openList.size > 0  && this.__destinationGrid === null) {
             console.log(this.__openList);
             //提取排序后的节点
             let minGrid: Grid = this.getMinGridInOpenList();
@@ -196,7 +196,9 @@ export class AStar extends Component {
     private showPath() {
         let grid: Grid = this.__destinationGrid;
         while(grid !== null) {
-            this.setGridColor(grid, Color.YELLOW);
+            if(grid.state !== GRID_TYPE.Origin && grid.state !== GRID_TYPE.Destination) {
+                grid.state = GRID_TYPE.Path;
+            }
             grid = grid.gridParent;
         }
     }

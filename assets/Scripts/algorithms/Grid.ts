@@ -1,4 +1,4 @@
-import { _decorator, Component, Label, Node, Prefab } from 'cc';
+import { _decorator, Color, Component, Label, Node, Prefab, Sprite, spriteAssembler, color } from 'cc';
 import { GRID_TYPE } from './AStar';
 const { ccclass, property } = _decorator;
 
@@ -9,6 +9,26 @@ export class Grid extends Node {
     }
     get prefabGrid() {
         return this.__prefabGrid;
+    }
+
+    private setGridColor() {
+        let color: Color = null;
+        switch (this.state) {
+            case GRID_TYPE.Origin:
+            case GRID_TYPE.Destination:
+                color = Color.BLUE;
+                break;
+            case GRID_TYPE.Obstacle:
+                color = Color.RED;
+                break;
+            case GRID_TYPE.Path:
+                color = Color.YELLOW;
+            default:
+                break;
+        }
+        if(color) {
+            this.__prefabGrid.getComponent(Sprite).color = color;
+        }
     }
 
     private __row: number = 0;
@@ -67,7 +87,7 @@ export class Grid extends Node {
     private __state: GRID_TYPE = GRID_TYPE.Default;
     set state(state: GRID_TYPE) {
         this.__state = state;
-        
+        this.setGridColor();
     }
     get state() {
         return this.__state;
