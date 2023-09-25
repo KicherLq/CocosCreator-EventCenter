@@ -7,13 +7,14 @@
  * 曼哈顿距离：只准水平和垂直移动下的最短距离
  */
 
-import { _decorator, CCInteger, Component, error, instantiate, Node, Prefab } from 'cc';
+import { _decorator, CCInteger, Color, Component, error, instantiate, Node, Prefab, size, Sprite, UITransform } from 'cc';
+import { Grid } from './Grid';
 const { ccclass, property } = _decorator;
 
 const FACTOR = 10; //相邻格子的距离
 const FACTOR_DIAGNOL = 14; //对角线相邻格子的距离
 
-enum GRID_TYPE {
+export enum GRID_TYPE {
     //障碍物
     Obstacle,
     //起点
@@ -22,71 +23,6 @@ enum GRID_TYPE {
     Destination,
     //普通单元格
     Default,
-}
-
-class Grid extends Node {
-    private __row: number = 0;
-    set row(r: number) {
-        this.__row = r;
-    }
-    get row() {
-        return this.__row;
-    }
-
-    private __col: number = 0;
-    set col(c: number) {
-        this.__col = c;
-    }
-    get col() {
-        return this.__col;
-    }
-    constructor(row: number, col: number) {
-        super();
-        this.__row = row;
-        this.__col = col;
-    }
-
-    //角色到该节点的实际距离
-    private __g: number = 0;
-    set g(value: number) {
-        this.__g = value;
-        this.__f = this.__g + this.__h;
-    }
-    get g() {
-        return this.__g;
-    }
-
-    //该节点到目的地的估价距离
-    private __h: number = 0;
-    set h(value: number) {
-        this.__h = value;
-        this.__f = this.__g + this.__h;
-    }
-    get h() {
-        return this.__h;
-    }
-
-    private __f: number = 0;
-    get f() {
-        return this.__f;
-    }
-
-    private __state: GRID_TYPE = GRID_TYPE.Default;
-    set state(state: GRID_TYPE) {
-        this.__state = state;
-        
-    }
-    get state() {
-        return this.__state;
-    }
-
-    private __gridParent: Grid = null;
-    set gridParent(grid: Grid) {
-        this.__gridParent = grid;
-    }
-    get gridParent() {
-        return this.__gridParent;
-    }
 }
 
 @ccclass('AStar')
@@ -106,6 +42,8 @@ export class AStar extends Component {
     @property({displayName: '估价方式', type: CCInteger})
     evalutionType: number = 0;
 
+    private __startGrid: Grid = null; //起点
+    private __endGrid: Grid = null; //终点
     private __openList: Set<Grid> = new Set(); //准备处理的单元格
     private __closeList: Set<Grid> = new Set(); //完成处理的单元格
     private __gridList: Grid[][] = []; //存放所有单元格
@@ -118,9 +56,14 @@ export class AStar extends Component {
         this.init();
     }
 
+    protected start(): void {
+        // this.findPath();
+    }
+
     private init() {
         this.initGridMap();
         this.render();
+        this.setStartAndEndGrid();
     }
 
     private initGridMap() {
@@ -140,6 +83,8 @@ export class AStar extends Component {
             for(let j = 0; j < this.__gridList[i].length; ++j) {
                 let grid: Grid = this.__gridList[i][j];
                 let com = instantiate(this.gridPrefab);
+                com.getComponent(UITransform).contentSize = size(this.gridSize, this.gridSize);
+                grid.prefabGrid = com;
                 com.parent = grid;
                 //垃圾cocos连个网格下的layout居中都没有，还TM得自己算坐标
                 let startX: number = -this.mapLength / 2 * this.gridSize;
@@ -151,8 +96,28 @@ export class AStar extends Component {
         }
     }
 
+    private setGridColor(grid: Grid, color: Color) {
+        if(grid.state === GRID_TYPE.Origin || grid.state === GRID_TYPE.Destination) {
+            return;
+        }
+        grid.children[0].getComponent(Sprite).color = color;
+    }
+
+    private setStartAndEndGrid() {
+        this.__startGrid = this.__gridList[0][0];
+        this.addGridToOpenList(this.__startGrid);
+        this.__startGrid.state = GRID_TYPE.Origin;
+        this.__endGrid = this.__gridList[4][14];
+        this.__endGrid.state = GRID_TYPE.Destination;
+
+    }
+
     public addGridToOpenList(grid: Grid) {
         this.__openList.add(grid);
+    }
+
+    private addGridToCloseList(grid: Grid) {
+        this.__closeList.add(grid);
     }
 
     public addNeighborGridToOpenList(parentGrid: Grid, neighborGrid: Grid, g: number) {
@@ -166,6 +131,8 @@ export class AStar extends Component {
                 neighborGrid.gridParent = parentGrid;
             }
         } else {
+            neighborGrid.g = newG;
+            neighborGrid.gridParent = parentGrid;
             neighborGrid.h = this.getH(neighborGrid);
             //如果周边有一个是终点，那么说明已经找到了
             if(neighborGrid.state === GRID_TYPE.Destination) {
@@ -211,12 +178,13 @@ export class AStar extends Component {
     //计算寻路
     public findPath() {
         while(this.__openList.size > 0 ) {
+            console.log(this.__openList);
             //提取排序后的节点
             let minGrid: Grid = this.getMinGridInOpenList();
             //处理该节点相邻的节点
             this.operateNeighborGrid(minGrid);
             //处理完后将该节点加入closeList中
-            this.addGridToOpenList(minGrid);
+            this.addGridToCloseList(minGrid);
         }
         if(this.__destinationGrid === null) {
             error('找不到可用路径')
@@ -228,7 +196,8 @@ export class AStar extends Component {
     private showPath() {
         let grid: Grid = this.__destinationGrid;
         while(grid !== null) {
-            
+            this.setGridColor(grid, Color.YELLOW);
+            grid = grid.gridParent;
         }
     }
 
@@ -243,6 +212,7 @@ export class AStar extends Component {
         //先按照f的值进行升序排序，再按照h的值进行升序排序
         tempArray.sort((a: Grid, b: Grid) => {
             return a.f === b.f ? a.h - b.h : a.f - b.f;
+            // return a.f - b.f;
         });
         let minGrid: Grid = tempArray[0];
         this.__openList.delete(minGrid);
@@ -251,25 +221,30 @@ export class AStar extends Component {
 
     private getH(grid: Grid): number {
         if(this.evalutionType === 0) {
-
+            return this.getDiagonalDistance(grid);
         }
         else if(this.evalutionType === 1) {
-
+            return this.getManhattanDistance(grid);
         } else {
-
+            return Math.ceil(this.getEuclideanDistance(grid));
         }
     }
 
-    //曼哈顿距离
-    private getDiagonalDistance(grid: Grid): number {
-
-    }
     //对角线距离
+    private getDiagonalDistance(grid: Grid): number {
+        let x: number = Math.abs(this.__endGrid.col - grid.col);
+        let y: number = Math.abs(this.__startGrid.row - grid.row);
+        let distance: number = Math.min(x, y) * FACTOR_DIAGNOL + Math.abs(x - y) * FACTOR;
+        return distance;
+    }
+    //曼哈顿距离
     private getManhattanDistance(grid: Grid): number {
-
+        return Math.abs(this.__endGrid.row - grid.row) * FACTOR + Math.abs(this.__endGrid.col - grid.col) * FACTOR;
     }
     //欧几里得距离，貌似有问题
     private getEuclideanDistance(grid: Grid): number {
-
+        let x: number = Math.pow((this.__endGrid.col - grid.col), 2);
+        let y: number = Math.pow((this.__endGrid.row - grid.row), 2);
+        return Math.sqrt(x + y);
     }
 }
