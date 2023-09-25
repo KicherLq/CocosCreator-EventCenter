@@ -240,13 +240,9 @@ export class AStar extends Component {
         for(const grid of this.__openList) {
             tempArray.push(grid);
         }
-        //先按照f的值进行升序排序
+        //先按照f的值进行升序排序，再按照h的值进行升序排序
         tempArray.sort((a: Grid, b: Grid) => {
-            return a.f - b.f;
-        });
-        //再按照h的值进行升序排序
-        tempArray.sort((a: Grid, b: Grid) => {
-            return a.h - b.h;
+            return a.f === b.f ? a.h - b.h : a.f - b.f;
         });
         let minGrid: Grid = tempArray[0];
         this.__openList.delete(minGrid);
